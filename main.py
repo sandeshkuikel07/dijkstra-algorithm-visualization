@@ -31,7 +31,7 @@ class Box:
         self.prior = None
 
     def draw(self, win, color):
-        pygame.draw.rect(win, color, (self.x * box_width, self.y * box_height, box_width-2, box_height-2))
+        pygame.draw.rect(win, color, (self.x * box_width, self.y * box_height, box_width-1, box_height-1))
 
     def set_neighbours(self):
         if self.x > 0:
@@ -64,8 +64,10 @@ queue.append(start_box)
 
 def main():
     begin_search = False
+    start_box_set = False
     target_box_set = False
     searching = True
+    start_box = None
     target_box = None
 
     while True:
@@ -79,17 +81,25 @@ def main():
                 x = pygame.mouse.get_pos()[0]
                 y = pygame.mouse.get_pos()[1]
                 # Draw Wall
-                if event.buttons[0]:
+                if event.buttons[0] and not begin_search:
                     i = x // box_width
                     j = y // box_height
                     grid[i][j].wall = True
-                # Set Target
-                if event.buttons[2] and not target_box_set:
+                # Set Start Box
+                if event.buttons[2] and not begin_search and not start_box_set:
+                    i = x // box_width
+                    j = y // box_height
+                    start_box = grid[i][j]
+                    start_box.start = True
+                    start_box_set = True
+                # Set Target Box after Start Box is set
+                if event.buttons[2] and not begin_search and start_box_set and not target_box_set:
                     i = x // box_width
                     j = y // box_height
                     target_box = grid[i][j]
-                    target_box.target = True
-                    target_box_set = True
+                    if target_box != start_box:  # Ensure target box is not the same as the start box
+                        target_box.target = True
+                        target_box_set = True
             # Start Algorithm
             if event.type == pygame.KEYDOWN and target_box_set:
                 begin_search = True
@@ -122,24 +132,24 @@ def main():
         for i in range(columns):
             for j in range(rows):
                 box = grid[i][j]
-                box.draw(window, (100, 100, 100))
+                box.draw(window, (252, 255, 233))  # FCFFE9
 
                 if box.queued:
-                    box.draw(window, (200, 0, 0))
+                    box.draw(window, (200, 0, 0))  # red
                 if box.visited:
-                    box.draw(window, (0, 200, 0))
+                    box.draw(window, (128, 0, 128))  # purple
                 if box in path:
-                    box.draw(window, (0, 0, 200))
-
+                    box.draw(window, (0, 0, 200))  # blue
                 if box.start:
-                    box.draw(window, (0, 200, 200))
+                    box.draw(window, (0, 255, 0))  # green
                 if box.wall:
-                    box.draw(window, (10, 10, 10))
+                    box.draw(window, (10, 10, 10))  # grey4
                 if box.target:
-                    box.draw(window, (200, 200, 0))
+                    box.draw(window, (255, 0, 0))  # navy blue
 
         pygame.display.flip()
 
 
 if __name__ == "__main__":
     main()
+

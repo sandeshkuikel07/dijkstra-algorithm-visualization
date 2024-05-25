@@ -74,4 +74,3 @@ def homepage():
         pygame.display.flip()
 
 homepage()
-

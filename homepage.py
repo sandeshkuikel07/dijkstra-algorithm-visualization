@@ -35,7 +35,6 @@ def draw_text(text, font, color, surface, x, y):
     text_rect = text_obj.get_rect()
     text_rect.center = (x, y)
     surface.blit(text_obj, text_rect)
-
 def homepage():
     while True:
         for event in pygame.event.get():
@@ -46,7 +45,7 @@ def homepage():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 # If user clicks on "Start", launch the dijkstra.py game
                 if start_button.collidepoint(event.pos):
-                    subprocess.Popen(["python", "main.py"])
+                    subprocess.Popen(["python", "algorithmselection.py"])
                     pygame.quit()
                     sys.exit()
 
@@ -70,9 +69,9 @@ def homepage():
         # Draw instructions
         draw_text("BY", small_font, WHITE, screen, screen_width // 2, screen_height * 0.60)
         draw_text("Sandesh Kuikel", small_font, WHITE, screen, screen_width // 2, screen_height * 0.65)
-        draw_text("Shreya Uprety", small_font, WHITE, screen, screen_width // 2, screen_height * 0.7)
-        draw_text("Sudip Basnet", small_font, WHITE, screen, screen_width // 2, screen_height * 0.75)
+
 
         pygame.display.flip()
 
 homepage()
+

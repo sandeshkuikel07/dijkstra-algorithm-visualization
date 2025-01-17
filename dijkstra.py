@@ -1,22 +1,25 @@
 from tkinter import messagebox, Tk
 import pygame
 import sys
+from collections import deque  # More efficient than list for queue operations
 
-window_width = 700
-window_height = 700
+# Window settings
+WINDOW_WIDTH = 700
+WINDOW_HEIGHT = 700
+COLUMNS = 50
+ROWS = 50
+BOX_WIDTH = WINDOW_WIDTH // COLUMNS
+BOX_HEIGHT = WINDOW_HEIGHT // ROWS
 
-window = pygame.display.set_mode((window_width, window_height))
-
-columns = 50
-rows = 50
-
-box_width = window_width // columns
-box_height = window_height // rows
-
-grid = []
-queue = []
-path = []
-
+# Colors
+BLACK = (0, 0, 0)
+WHITE = (252, 255, 233)
+PURPLE = (128, 0, 128)
+RED = (200, 0, 0)
+BLUE = (0, 0, 200)
+GREEN = (0, 255, 0)
+WALL_COLOR = (10, 10, 10)
+TARGET_COLOR = (255, 0, 0)
 
 class Box:
     def __init__(self, i, j):
@@ -31,124 +34,147 @@ class Box:
         self.prior = None
 
     def draw(self, win, color):
-        pygame.draw.rect(win, color, (self.x * box_width, self.y * box_height, box_width-1, box_height-1))
+        pygame.draw.rect(win, color, (self.x * BOX_WIDTH, self.y * BOX_HEIGHT, BOX_WIDTH-1, BOX_HEIGHT-1))
 
-    def set_neighbours(self):
-        if self.x > 0:
-            self.neighbours.append(grid[self.x - 1][self.y])
-        if self.x < columns - 1:
-            self.neighbours.append(grid[self.x + 1][self.y])
-        if self.y > 0:
-            self.neighbours.append(grid[self.x][self.y - 1])
-        if self.y < rows - 1:
-            self.neighbours.append(grid[self.x][self.y + 1])
+    def set_neighbours(self, grid):
+        self.neighbours = []
+        # Check all four directions
+        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]  # right, down, left, up
+        for dx, dy in directions:
+            new_x, new_y = self.x + dx, self.y + dy
+            if 0 <= new_x < COLUMNS and 0 <= new_y < ROWS:
+                self.neighbours.append(grid[new_x][new_y])
 
+def create_grid():
+    return [[Box(i, j) for j in range(ROWS)] for i in range(COLUMNS)]
 
-# Create Grid
-for i in range(columns):
-    arr = []
-    for j in range(rows):
-        arr.append(Box(i, j))
-    grid.append(arr)
-
-# Set Neighbours
-for i in range(columns):
-    for j in range(rows):
-        grid[i][j].set_neighbours()
-
-start_box = grid[0][0]
-start_box.start = True
-start_box.visited = True
-queue.append(start_box)
-
+def reset_path(grid, queue, path):
+    for i in range(COLUMNS):
+        for j in range(ROWS):
+            box = grid[i][j]
+            if not (box.start or box.wall or box.target):
+                box.queued = False
+                box.visited = False
+                box.prior = None
+    queue.clear()
+    path.clear()
 
 def main():
+    pygame.init()
+    window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+    pygame.display.set_caption("Pathfinding Visualizer")
+    
+    grid = create_grid()
+    # Set neighbours for all boxes
+    for i in range(COLUMNS):
+        for j in range(ROWS):
+            grid[i][j].set_neighbours(grid)
+
+    queue = deque()  # Use deque instead of list for better performance
+    path = []
+    
     begin_search = False
     start_box_set = False
     target_box_set = False
-    searching = True
+    searching = False
     start_box = None
     target_box = None
 
     while True:
         for event in pygame.event.get():
-            # Quit Window
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            # Mouse Controls
-            elif event.type == pygame.MOUSEMOTION:
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
                 x = pygame.mouse.get_pos()[0]
                 y = pygame.mouse.get_pos()[1]
-                # Draw Wall
-                if event.buttons[0] and not begin_search:
-                    i = x // box_width
-                    j = y // box_height
-                    grid[i][j].wall = True
-                # Set Start Box
-                if event.buttons[2] and not begin_search and not start_box_set:
-                    i = x // box_width
-                    j = y // box_height
-                    start_box = grid[i][j]
-                    start_box.start = True
-                    start_box_set = True
-                # Set Target Box after Start Box is set
-                if event.buttons[2] and not begin_search and start_box_set and not target_box_set:
-                    i = x // box_width
-                    j = y // box_height
-                    target_box = grid[i][j]
-                    if target_box != start_box:  # Ensure target box is not the same as the start box
+                i = x // BOX_WIDTH
+                j = y // BOX_HEIGHT
+                
+                # Left click to draw walls
+                if event.button == 1 and not begin_search:
+                    if not (grid[i][j].start or grid[i][j].target):
+                        grid[i][j].wall = not grid[i][j].wall  # Toggle wall
+
+                # Right click to set start and target
+                elif event.button == 3 and not begin_search:
+                    if not start_box_set:
+                        start_box = grid[i][j]
+                        start_box.start = True
+                        start_box_set = True
+                    elif not target_box_set and not grid[i][j].start:
+                        target_box = grid[i][j]
                         target_box.target = True
                         target_box_set = True
-            # Start Algorithm
-            if event.type == pygame.KEYDOWN and target_box_set:
-                begin_search = True
 
-        if begin_search:
-            if len(queue) > 0 and searching:
-                current_box = queue.pop(0)
+            # Press SPACE to start search
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE and start_box_set and target_box_set and not begin_search:
+                    begin_search = True
+                    searching = True
+                    queue.append(start_box)
+                    start_box.queued = True
+                # Press 'R' to reset
+                elif event.key == pygame.K_r:
+                    grid = create_grid()
+                    for i in range(COLUMNS):
+                        for j in range(ROWS):
+                            grid[i][j].set_neighbours(grid)
+                    queue.clear()
+                    path.clear()
+                    begin_search = False
+                    start_box_set = False
+                    target_box_set = False
+                    searching = False
+                    start_box = None
+                    target_box = None
+
+        if begin_search and searching:
+            if queue:
+                current_box = queue.popleft()  # Use popleft() for deque
                 current_box.visited = True
+
                 if current_box == target_box:
                     searching = False
-                    while current_box.prior != start_box:
-                        path.append(current_box.prior)
-                        current_box = current_box.prior
+                    current = current_box
+                    while current.prior != None:
+                        path.append(current.prior)
+                        current = current.prior
                 else:
                     for neighbour in current_box.neighbours:
-                        if not neighbour.queued and not neighbour.wall:
+                        if not neighbour.queued and not neighbour.wall and not neighbour.visited:
                             neighbour.queued = True
                             neighbour.prior = current_box
                             queue.append(neighbour)
-            else:
-                if searching:
-                    Tk().wm_withdraw()
-                    messagebox.showinfo("No Solution", "There is no solution!")
-                    searching = False
-                    # Return control back to the Pygame loop
-                    return
+            elif searching:
+                Tk().wm_withdraw()
+                messagebox.showinfo("No Solution", "There is no solution!")
+                searching = False
 
-        window.fill((0, 0, 0))
-
-        for i in range(columns):
-            for j in range(rows):
+        # Draw grid
+        window.fill(BLACK)
+        for i in range(COLUMNS):
+            for j in range(ROWS):
                 box = grid[i][j]
-                box.draw(window, (252, 255, 233))  # FCFFE9
-
+                color = WHITE
+                
                 if box.queued:
-                    box.draw(window, (200, 0, 0))  # red
+                    color = PURPLE
                 if box.visited:
-                    box.draw(window, (128, 0, 128))  # purple
+                    color = RED
                 if box in path:
-                    box.draw(window, (0, 0, 200))  # blue
+                    color = BLUE
                 if box.start:
-                    box.draw(window, (0, 255, 0))  # green
+                    color = GREEN
                 if box.wall:
-                    box.draw(window, (10, 10, 10))  # grey4
+                    color = WALL_COLOR
                 if box.target:
-                    box.draw(window, (255, 0, 0))  # navy blue
+                    color = TARGET_COLOR
+                
+                box.draw(window, color)
 
         pygame.display.flip()
-
 
 if __name__ == "__main__":
     main()

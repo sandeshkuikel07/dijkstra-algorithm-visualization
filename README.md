@@ -1,4 +1,4 @@
-# Dijkstra Algorithm Visualization
+# DijkstraDash
 
 A Python-based project for visualizing the Dijkstra Algorithm using `Pygame`. This project also includes placeholders for Floyd-Warshall and Bellman-Ford visualizations.
 
